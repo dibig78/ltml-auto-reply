@@ -6,6 +6,12 @@
       "runtimeExecutable": "/Users/dongwookim/Downloads/ltml-auto-reply 2/.venv/bin/python",
       "runtimeArgs": ["-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
       "port": 8000
+    },
+    {
+      "name": "admin-dashboard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "admin-dashboard"],
+      "port": 5174
     }
   ]
 }

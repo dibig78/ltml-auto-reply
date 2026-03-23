@@ -50,10 +50,40 @@ def search_files(keywords: dict) -> list[dict]:
     return results[:5]
 
 def find_files(title: str, content: str) -> dict:
+    """포털 DB 우선 검색 → 실패 시 legacy file_index.json 폴백."""
     kw = extract_keywords(title, content)
+
+    # 1차: lt-docs-portal Supabase DB 검색
+    try:
+        from src.files.portal_searcher import search_portal_documents
+        portal_results = search_portal_documents(kw)
+        if portal_results:
+            return {
+                "found": True,
+                "source": "portal",
+                "files": [
+                    {
+                        "product_name": r["product_name"] or r["product_code"],
+                        "file_name": r["file_name"],
+                        "download_url": r["signed_url"] or "",
+                        "portal_url": r["portal_url"],
+                        "document_id": r["document_id"],
+                        "doc_type": r["doc_type"],
+                        "score": r["score"],
+                    }
+                    for r in portal_results
+                ],
+                "doc_type": kw.get("doc_type", "TDS"),
+                "customer_email": kw.get("customer_email"),
+            }
+    except Exception as e:
+        print(f"[WARN] 포털 검색 실패, legacy 폴백: {e}")
+
+    # 2차: legacy file_index.json 폴백
     matches = search_files(kw)
     return {
-        "found": len(matches)>0,
+        "found": len(matches) > 0,
+        "source": "legacy",
         "files": [{"product_name":m["file_info"]["product_name"], "file_name":m["file_info"]["file_name"],
                     "download_url":m["file_info"].get("download_url",""), "score":m["score"]} for m in matches],
         "doc_type": kw.get("doc_type","TDS"),

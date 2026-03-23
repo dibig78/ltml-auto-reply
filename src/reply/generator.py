@@ -23,6 +23,20 @@ def generate(title: str, content: str, category: str, author: str = "", email: s
     if category == "tds_request":
         file_result = find_files(title, content)
 
+    # 파일 정보 포맷팅
+    file_info_text = "(없음)"
+    if file_result and file_result.get("found"):
+        source_label = "포털 DB" if file_result.get("source") == "portal" else "기술자료실"
+        file_lines = [f"검색 소스: {source_label}"]
+        for f in file_result.get("files", []):
+            line = f"- {f['product_name']} / {f['file_name']} (score: {f['score']:.2f})"
+            if f.get("portal_url"):
+                line += f" | 다운로드: {f['portal_url']}"
+            elif f.get("download_url"):
+                line += f" | URL: {f['download_url']}"
+            file_lines.append(line)
+        file_info_text = "\n".join(file_lines)
+
     system = load_prompt(category)
     user_msg = f"""## 고객 문의
 제목: {title}
@@ -34,7 +48,7 @@ def generate(title: str, content: str, category: str, author: str = "", email: s
 {context or '(없음)'}
 
 ## 매칭 파일 정보
-{json.dumps(file_result, ensure_ascii=False) if file_result else '(없음)'}
+{file_info_text}
 
 답변을 200~500자로 작성하세요. JSON: {{"reply_text":"", "confidence":0.0~1.0, "needs_review":true/false}}"""
 
@@ -45,7 +59,8 @@ def generate(title: str, content: str, category: str, author: str = "", email: s
     try: result = json.loads(text)
     except: result = {"reply_text": text, "confidence": 0.5, "needs_review": True}
     result["sources"] = sources
-    result["matched_files"] = file_result.get("files",[]) if file_result else []
+    result["matched_files"] = file_result.get("files", []) if file_result else []
+    result["file_source"] = file_result.get("source", "none") if file_result else "none"
     result["customer_email"] = file_result.get("customer_email") if file_result else email
     if category == "pricing": result["needs_review"] = True
     return result
