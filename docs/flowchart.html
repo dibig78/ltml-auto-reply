@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>LT소재 고객 게시판 자동 답변 시스템 — Flow Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+body { font-family: -apple-system, sans-serif; background: #f8fafc; margin: 0; padding: 20px; }
+h1 { text-align: center; color: #0f172a; font-size: 22px; margin-bottom: 4px; }
+p.sub { text-align: center; color: #64748b; font-size: 13px; margin-top: 0; }
+.chart { max-width: 1100px; margin: 20px auto; background: #fff; border-radius: 12px; padding: 30px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+</style>
+</head>
+<body>
+<h1>LT소재 고객 게시판 자동 답변 시스템</h1>
+<p class="sub">Claude Code 기반 · 반자동(1단계) → 완전자동(2단계)</p>
+<div class="chart">
+<pre class="mermaid">
+flowchart TD
+    A["🌐 고객 게시판\nltml.co.kr/customer/02/\n새 글 등록"]:::start --> B["🔍 board_scraper.py\n5분 간격 크롤링\n'답변 대기' 감지"]:::process
+
+    B --> C{"🔐 비밀글?"}:::decision
+    C -->|Yes| D["관리자 로그인\n내용+이메일 추출"]:::process
+    C -->|No| E["내용 직접 추출"]:::process
+    D --> F["🏷️ classifier.py\nClaude API 문의 분류"]:::ai
+    E --> F
+
+    F --> G{"📋 분류 결과\n(6종)"}:::decision
+
+    G -->|"📎 TDS/MSDS"| H["file_searcher.py\n기술자료실 파일 매칭"]:::file
+    G -->|"🔬 제품추천"| I["RAG 검색\nTDS/카탈로그 참조"]:::rag
+    G -->|"💰 가격/견적"| J["가격 차단\n영업 담당자 연결"]:::warn
+    G -->|"⚙️ 기술문의"| K["RAG 검색\n기술문서 참조"]:::rag
+    G -->|"📦 납기/배송"| L["담당자 확인 안내"]:::process
+    G -->|"💬 기타"| M["범용 응대"]:::process
+
+    H --> N["🤖 generator.py\nClaude API + RAG\n답변 초안 생성"]:::ai
+    I --> N
+    J --> N
+    K --> N
+    L --> N
+    M --> N
+
+    N --> O["📊 관리자 대시보드\nFastAPI + React\n답변 검토/수정/승인"]:::dashboard
+
+    O --> P{"👤 담당자\n검토"}:::decision
+
+    P -->|"🚨 에스컬레이션"| S["담당자 직접 처리\n(클레임/복잡 건)"]:::escalate
+    P -->|"✏️ 수정"| R["답변 수정\n대시보드에서 편집"]:::edit
+    P -->|"✅ 승인"| Q{"📧 이메일\n+ 파일?"}:::decision
+
+    R --> Q
+
+    Q -->|"Yes"| T["📧 email_sender.py\nSMTP 파일 첨부 발송"]:::email
+    Q -->|"No"| U["📋 게시판만 답변\n다운로드 링크 포함"]:::process
+
+    T --> V["📋 board_writer.py\nPlaywright 게시판 게시"]:::process
+    U --> V
+
+    V --> W["✅ 답변 완료\n상태: 발송 완료"]:::done
+
+    KB1["📄 TDS/MSDS PDF"]:::kb --> KB2["🧠 ChromaDB\n벡터 임베딩"]:::kb
+    KB3["📦 기술자료실"]:::kb --> KB4["file_index.json\n파일 인덱스"]:::kb
+    KB5["💡 FAQ 데이터"]:::kb --> KB2
+
+    KB2 -.-> N
+    KB4 -.-> H
+
+    classDef start fill:#1e2761,stroke:#0d9488,color:#fff,stroke-width:2px
+    classDef process fill:#f0fdf4,stroke:#0d9488,color:#065f46
+    classDef ai fill:#7c3aed,stroke:#6d28d9,color:#fff
+    classDef dashboard fill:#2563eb,stroke:#1d4ed8,color:#fff
+    classDef decision fill:#fffbeb,stroke:#f59e0b,color:#92400e
+    classDef file fill:#eff6ff,stroke:#3b82f6,color:#1e40af
+    classDef rag fill:#f0fdf4,stroke:#059669,color:#065f46
+    classDef warn fill:#fef2f2,stroke:#ef4444,color:#991b1b
+    classDef email fill:#2563eb,stroke:#1d4ed8,color:#fff
+    classDef edit fill:#eff6ff,stroke:#3b82f6,color:#1d4ed8
+    classDef escalate fill:#ef4444,stroke:#dc2626,color:#fff
+    classDef done fill:#10b981,stroke:#059669,color:#fff
+    classDef kb fill:#faf5ff,stroke:#c4b5fd,color:#7c3aed
+</pre>
+</div>
+<script>mermaid.initialize({startOnLoad:true, theme:'base', themeVariables:{primaryColor:'#1e2761',primaryTextColor:'#fff',lineColor:'#94a3b8',fontSize:'13px'}});</script>
+</body>
+</html>

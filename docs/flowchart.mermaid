@@ -1,0 +1,51 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e2761', 'primaryTextColor': '#fff', 'primaryBorderColor': '#0d9488', 'lineColor': '#64748b', 'secondaryColor': '#f8fafc', 'tertiaryColor': '#ecfdf5'}}}%%
+flowchart TD
+    A["🌐 ltml.co.kr<br/>고객 게시판<br/>새 글 등록"] --> B["🔍 board_scraper.py<br/>5분 간격 크롤링<br/>'답변 대기' 감지"]
+    B --> C{"🔐 비밀글?"}
+    C -->|"Yes"| D["관리자 로그인<br/>내용 + 이메일 추출"]
+    C -->|"No"| E["내용 직접 추출"]
+    D --> F["🏷️ classifier.py<br/>문의 유형 분류 (6종)"]
+    E --> F
+
+    F --> G{"📋 분류 결과"}
+    G -->|"TDS/MSDS 요청"| H["📎 file_searcher.py<br/>기술자료실 파일 매칭"]
+    G -->|"제품 추천"| I["🔬 RAG 검색<br/>TDS/카탈로그 참조"]
+    G -->|"가격/견적"| J["💰 영업 담당자 연결<br/>가격 정보 차단"]
+    G -->|"기술 문의"| K["⚙️ RAG 검색<br/>기술 문서 참조"]
+    G -->|"납기/배송"| L["📦 담당자 확인<br/>필요 안내"]
+    G -->|"기타"| M["💬 범용 응대"]
+
+    H --> N["🤖 generator.py<br/>Claude API 답변 생성"]
+    I --> N
+    J --> N
+    K --> N
+    L --> N
+    M --> N
+
+    N --> O["📊 관리자 대시보드<br/>(FastAPI + React)"]
+
+    O --> P{"👤 담당자 검토"}
+    P -->|"✅ 승인"| Q{"📧 이메일 있음?"}
+    P -->|"✏️ 수정"| R["답변 수정 후 승인"]
+    P -->|"🚨 에스컬레이션"| S["담당자 직접 처리"]
+    R --> Q
+
+    Q -->|"Yes + 파일 매칭"| T["📧 email_sender.py<br/>SMTP 파일 첨부 발송"]
+    Q -->|"No"| U["📋 게시판만 답변"]
+    T --> V["📋 board_writer.py<br/>게시판 답변 게시"]
+    U --> V
+
+    V --> W["✅ 완료<br/>상태: 발송 완료"]
+
+    subgraph "지식 베이스"
+        X["📄 TDS/MSDS PDF"] --> Y["🧠 ChromaDB<br/>벡터 임베딩"]
+        Z["📑 기술자료실"] --> AA["📦 file_index.json<br/>파일 인덱스"]
+        AB["💡 FAQ 30건"] --> Y
+    end
+
+    style A fill:#1e2761,stroke:#0d9488,color:#fff
+    style O fill:#2563eb,stroke:#1d4ed8,color:#fff
+    style W fill:#10b981,stroke:#059669,color:#fff
+    style S fill:#ef4444,stroke:#dc2626,color:#fff
+    style T fill:#3b82f6,stroke:#2563eb,color:#fff
+    style N fill:#8b5cf6,stroke:#7c3aed,color:#fff

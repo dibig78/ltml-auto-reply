@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>LT소재 자동 답변 시스템 + lt-docs-portal 연계 아키텍처</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+body { font-family: -apple-system, sans-serif; background: #f8fafc; margin: 0; padding: 20px; }
+h1 { text-align: center; color: #0f172a; font-size: 22px; margin-bottom: 4px; }
+p.sub { text-align: center; color: #64748b; font-size: 13px; margin-top: 0; }
+.chart { max-width: 1200px; margin: 20px auto; background: #fff; border-radius: 12px; padding: 30px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>LT소재 고객 게시판 자동 답변 시스템 + lt-docs-portal 연계 아키텍처</h1>
+<p class="sub">문의 접수 → 분류 → 문서 검색 → 답변 생성 → 관리자 검토 → 발송 파이프라인</p>
+<div class="chart">
+<pre class="mermaid">
+flowchart TD
+    subgraph INTAKE["1단계: 문의 접수"]
+        A["🌐 ltml.co.kr 고객게시판\n/customer/02/"] -->|"Playwright 크롤링\n(5분 간격, 평일 9-18시)"| B["board_scraper.py\n새 '답변 대기' 글 감지"]
+        B -->|"제목, 본문, 이메일 추출"| C["Supabase\ninquiries 테이블 저장"]
+    end
+
+    subgraph CLASSIFY["2단계: 문의 분류"]
+        C --> D["classifier.py\nClaude Sonnet 4.6"]
+        D -->|"JSON: category, confidence, reason"| E{문의 유형 판별}
+        E -->|"tds_request\n(TDS/MSDS/ICP/CoA)"| F["문서 요청 처리"]
+        E -->|"product_recommend"| G["제품 추천 처리"]
+        E -->|"pricing"| H["⚠️ 자동 에스컬레이션\n가격 정보 절대 불포함"]
+        E -->|"technical"| I["기술 문의 처리"]
+        E -->|"delivery"| J["납기/배송 처리"]
+        E -->|"general"| K["일반 문의 처리"]
+    end
+
+    subgraph SEARCH["3단계: 문서 검색 (핵심 연계)"]
+        F --> L["portal_searcher.py ✨NEW\nSupabase documents 테이블 쿼리"]
+        L -->|"product_code ilike 검색\ndoc_type 필터"| M[("lt-docs-portal\nSupabase DB\n(documents 테이블)")]
+        L -->|"signed URL 생성\n(7일 만료)"| N[("Supabase Storage\ndocuments 버킷")]
+        L -->|"매칭 실패 시 폴백"| O["file_searcher.py\nlegacy file_index.json"]
+    end
+
+    subgraph RAG["3단계: RAG 검색"]
+        G --> P["retriever.py\nChromaDB 벡터 검색"]
+        I --> P
+        J --> P
+        K --> P
+    end
+
+    subgraph GENERATE["4단계: 답변 생성"]
+        L -->|"매칭 문서 + signed URL"| Q["generator.py\nClaude Sonnet 4.6\nRAG 컨텍스트 + 카테고리별 프롬프트"]
+        P -->|"관련 문서 5건"| Q
+        H -->|"영업담당 연결 템플릿"| Q
+        O -->|"폴백 파일 정보"| Q
+        Q -->|"답변 초안 저장"| R[("Supabase\ninquiries.draft_reply")]
+        Q -->|"문서 연결"| S[("inquiry_document_links\njunction 테이블 ✨NEW")]
+    end
+
+    subgraph REVIEW["5단계: 관리자 검토"]
+        R --> T["📊 Unified Admin Dashboard ✨NEW\nReact + Tailwind CSS"]
+        T -->|"문의 목록/상세 조회"| U["답변 검토 & 수정"]
+        U --> V{관리자 판단}
+        V -->|"승인 → 이메일"| W["email_sender.py\nStorage 파일 다운로드\n+ SMTP 첨부 발송"]
+        V -->|"승인 → 게시판"| X["board_writer.py\nPlaywright 자동 게시"]
+        V -->|"수정"| U
+        V -->|"에스컬레이션"| Y["담당자 알림\n031-330-1000"]
+    end
+
+    subgraph DELIVER["6단계: 발송"]
+        W -->|"발송 기록"| Z[("email_logs 테이블")]
+        X -->|"게시 완료"| AA["inquiries.status\n→ '답변 완료'"]
+    end
+
+    subgraph PORTAL["lt-docs-portal 기존 기능"]
+        BB["B2B 고객 로그인"] --> CC["문서 검색/다운로드"]
+        DD["Admin 문서 업로드"] --> M
+        DD --> N
+        CC --> M
+        CC --> N
+    end
+
+    subgraph SUPABASE["공유 Supabase 인스턴스"]
+        M
+        N
+        R
+        S
+        Z
+        EE[("user_profiles")]
+        FF[("download_logs")]
+    end
+
+    style F fill:#4CAF50,color:#fff
+    style L fill:#4CAF50,color:#fff
+    style T fill:#2196F3,color:#fff
+    style H fill:#FF5722,color:#fff
+    style S fill:#4CAF50,color:#fff
+</pre>
+</div>
+<script>mermaid.initialize({startOnLoad:true, theme:'base', themeVariables:{primaryColor:'#1e2761',primaryTextColor:'#fff',lineColor:'#94a3b8',fontSize:'13px'}});</script>
+</body>
+</html>

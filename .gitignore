@@ -1,0 +1,11 @@
+.env
+.venv/
+data/chroma_db/
+data/downloads/
+data/reply_history.json
+data/seen_posts.json
+data/email_send_log.json
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
