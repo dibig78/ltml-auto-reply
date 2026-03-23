@@ -27,7 +27,7 @@ export default function InquiriesPage() {
   const [loading, setLoading] = useState(false)
 
   const load = () => {
-    api.getInquiries(filter || undefined).then(setInquiries).catch(console.error)
+    api.getInquiries(filter || undefined).then(setInquiries).catch(() => setInquiries([]))
   }
 
   useEffect(() => { load() }, [filter])

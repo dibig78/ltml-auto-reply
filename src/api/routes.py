@@ -23,7 +23,10 @@ class ReplyAction(BaseModel):
 @router.get("/inquiries")
 def list_inquiries(status: Optional[str] = None, limit: int = 50):
     """문의 목록 조회 (status 필터 가능)."""
-    return get_inquiries(status=status, limit=limit)
+    try:
+        return get_inquiries(status=status, limit=limit)
+    except RuntimeError as e:
+        raise HTTPException(503, f"DB 연결 실패: {e}")
 
 
 @router.get("/inquiries/{inquiry_id}")
@@ -184,4 +187,7 @@ def get_document_signed_url(document_id: str, expires_in: int = Query(default=60
 @router.get("/stats")
 def dashboard_stats():
     """대시보드 통합 통계."""
-    return get_stats()
+    try:
+        return get_stats()
+    except RuntimeError:
+        return {"total": 0, "pending": 0, "reviewed": 0, "approved": 0, "sent": 0, "escalated": 0, "total_documents": 0, "db_status": "disconnected"}
